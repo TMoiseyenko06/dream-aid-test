@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+
+    <!-- Bundle identification -->
+    <key>CFBundleDevelopmentRegion</key>
+    <string>$(DEVELOPMENT_LANGUAGE)</string>
+
+    <key>CFBundleDisplayName</key>
+    <string>DreamCue</string>
+
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+
+    <key>CFBundlePackageType</key>
+    <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+
+    <key>CFBundleVersion</key>
+    <string>1</string>
+
+    <!-- watchOS minimum version -->
+    <key>MinimumOSVersion</key>
+    <string>9.0</string>
+
+    <!-- SwiftUI entry point — no storyboard -->
+    <key>WKApplication</key>
+    <true/>
+
+    <!-- HealthKit usage descriptions (required for App Store submission) -->
+    <key>NSHealthShareUsageDescription</key>
+    <string>DreamCue reads your heart rate and heart rate variability from Apple Watch to detect and monitor your sleep stages.</string>
+
+    <key>NSHealthUpdateUsageDescription</key>
+    <string>DreamCue saves a workout session to Apple Health to keep sensors active while you sleep, and records your sleep activity data.</string>
+
+    <!-- Background modes: workout processing keeps the session alive during sleep -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>workout-processing</string>
+    </array>
+
+    <!-- WatchConnectivity companion app -->
+    <key>WKWatchKitApp</key>
+    <true/>
+
+</dict>
+</plist>
