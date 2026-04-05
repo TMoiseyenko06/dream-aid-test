@@ -1,4 +1,3 @@
-import asyncio
 import os
 import time
 from contextlib import asynccontextmanager
@@ -16,7 +15,6 @@ from models import (
     SessionStartResponse,
 )
 from session import session_manager
-from sinricpro import fire_reality_check_cue
 
 load_dotenv()
 
@@ -92,9 +90,7 @@ async def receive_sensor_data(reading: SensorReading):
         cue_triggered = True
         reading_dict["cue_fired"] = True
         session_manager.record_cue_fired()
-
-        # Fire asynchronously — do not block the response
-        asyncio.create_task(fire_reality_check_cue())
+        # The iPhone app receives cue_triggered=true and plays the audio locally.
 
     await database.store_reading(reading_dict)
 
@@ -159,14 +155,9 @@ async def stats():
 
 @app.post("/api/test-cue")
 async def test_cue():
-    """Fire a test cue immediately, regardless of sleep stage."""
-    try:
-        await fire_reality_check_cue()
-        return {"success": True, "message": "Cue fired successfully"}
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Cue failed: {exc}")
+    """Signal that a test cue should fire. The iPhone app plays the audio locally."""
+    session_manager.record_cue_fired()
+    return {"success": True, "cue_triggered": True, "message": "Cue signal sent — iPhone will play audio"}
 
 
 @app.post("/api/session/start", response_model=SessionStartResponse)

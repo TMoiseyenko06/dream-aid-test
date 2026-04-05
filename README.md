@@ -1,22 +1,21 @@
 # DreamCue
 
-DreamCue is an iOS/watchOS sleep tracking app that detects REM sleep in real time and triggers an Alexa-enabled device as a gentle reality check cue for lucid dreaming. Your Apple Watch monitors heart rate and HRV throughout the night; when the on-device classifier identifies REM sleep, it signals your backend, which flips a SinricPro virtual switch — causing Alexa to play a soft sound without waking you fully.
+DreamCue is an iOS/watchOS sleep tracking app that detects REM sleep in real time and plays a gentle sound on your iPhone as a reality check cue for lucid dreaming. Your Apple Watch monitors heart rate and HRV throughout the night; when the classifier identifies REM sleep, the backend signals the iPhone app, which plays your chosen audio file for a configurable duration — audible enough to register subconsciously but quiet enough not to fully wake you.
 
 ---
 
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)
-2. [SinricPro Setup](#sinricpro-setup)
-3. [Alexa Setup](#alexa-setup)
-4. [Backend Setup](#backend-setup)
-5. [Ngrok Setup](#ngrok-setup)
-6. [Xcode Setup](#xcode-setup)
-7. [Permissions to Grant on First Launch](#permissions-to-grant-on-first-launch)
-8. [First Use Walkthrough](#first-use-walkthrough)
-9. [Understanding the Dashboard](#understanding-the-dashboard)
-10. [Tuning Guide](#tuning-guide)
-11. [Troubleshooting](#troubleshooting)
+2. [Adding Your Cue Sound File](#adding-your-cue-sound-file)
+3. [Backend Setup](#backend-setup)
+4. [Ngrok Setup](#ngrok-setup)
+5. [Xcode Setup](#xcode-setup)
+6. [Permissions to Grant on First Launch](#permissions-to-grant-on-first-launch)
+7. [First Use Walkthrough](#first-use-walkthrough)
+8. [Understanding the Dashboard](#understanding-the-dashboard)
+9. [Tuning Guide](#tuning-guide)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -29,37 +28,29 @@ Before you begin, make sure you have the following:
 | Mac with Xcode 15+ | Required to build and deploy the iOS/watchOS app |
 | Python 3.11+ | Required to run the backend server |
 | Apple Watch Series 4 or later | **Required** — primary sensor for HR and HRV data |
-| Alexa-enabled device | Echo, Echo Dot, or any Alexa device |
-| SinricPro account (free) | Virtual switch bridge between backend and Alexa |
 | ngrok account (free tier) | Exposes your local backend to the internet |
+| A sound file (`cue_sound.mp3`) | The audio played when REM is detected — your choice |
 
 ---
 
-## SinricPro Setup
+## Adding Your Cue Sound File
 
-SinricPro acts as the bridge between the DreamCue backend and your Alexa device via a virtual switch.
+When REM is detected DreamCue plays a sound file directly on your iPhone. You choose the file.
 
-1. Create a free account at [sinric.pro](https://sinric.pro)
-2. In the dashboard, create a new device and select **Virtual Switch** as the device type
-3. Give it a recognisable name (e.g. `DreamCue Switch`)
-4. Navigate to **Settings → API Key** and copy your API key
-5. Open the device page and copy the **Device ID** (the long hexadecimal string — not the display name)
-6. Keep both values handy; you will add them to the `.env` file during backend setup
+**Recommended cues** (keep volume low — you want subconscious awareness, not full waking):
+- Soft Tibetan bowl tone
+- A single gentle chime
+- Binaural beat segment
+- Your own recorded phrase ("You are dreaming…")
 
----
+**Steps:**
+1. Find or record an audio file in `.mp3`, `.wav`, `.m4a`, or `.aiff` format
+2. Rename it to **`cue_sound.mp3`** (or keep the original extension — the app tries all four)
+3. In Xcode, drag the file into the **DreamCue** group (not the Watch group) and tick **Add to targets: DreamCue**
+4. Verify it appears in **Build Phases → Copy Bundle Resources** for the DreamCue target
+5. Use **Settings → Test Cue** in the app to confirm it plays before bed
 
-## Alexa Setup
-
-1. Open the **Alexa** app on your phone
-2. Go to **More → Skills & Games** and search for **SinricPro**
-3. Enable the SinricPro skill and link your SinricPro account when prompted
-4. Tap **Discover Devices** — your virtual switch should appear as `DreamCue Switch`
-5. Create a new Routine:
-   - **Trigger**: When `DreamCue Switch` turns on
-   - **Action**: Play ambient music or a gentle sound at low volume (or any subtle audio cue of your choice)
-6. Save the routine
-
-> **Why the on/off cycle?** The backend briefly turns the switch on then off (2-second pulse). This is intentional — Alexa routines only fire on a state *change*, not on repeated "on" commands. The off pulse resets the switch so the next REM detection triggers the routine again.
+> If no `cue_sound` file is found in the bundle the app falls back to repeating a short system chime for the configured duration — functional but less pleasant.
 
 ---
 
@@ -69,17 +60,18 @@ SinricPro acts as the bridge between the DreamCue backend and your Alexa device 
 cd dreamcue-backend
 ```
 
-Copy the example environment file and fill in your credentials:
+Copy the example environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` and set the following values:
+The defaults work out of the box. Edit `.env` if you want to change thresholds:
 
 ```
-SINRICPRO_API_KEY=your_api_key_here
-SINRICPRO_DEVICE_ID=your_device_id_here
+CUE_ENABLED=true
+MIN_REM_DURATION_MINUTES=5
+CUE_INTERVAL_SECONDS=120
 ```
 
 Install dependencies:
@@ -158,7 +150,9 @@ Copy the `https://` URL. You will paste it into the DreamCue app during first-ru
 When you open DreamCue for the first time, you will be prompted for two permissions. Both are required for overnight operation.
 
 - **Health access**: Tap **Allow All** in the HealthKit permission sheet. This grants DreamCue read access to heart rate and HRV data from your Apple Watch.
-- **Location**: Tap **Allow Always**. Location access is what keeps the iOS relay process alive in the background overnight. Without "Always" permission, iOS will suspend the app and watch data will stop flowing.
+- **Location**: Tap **Allow Always**. Location access keeps the iOS relay alive in the background overnight. Without "Always" permission, iOS will suspend the app and watch data will stop flowing.
+
+Audio playback requires no additional permission — the `audio` background mode in Info.plist is sufficient. Make sure your iPhone is **not on silent** (check the physical mute switch on the side of the phone) and volume is set to a comfortable level before bed.
 
 ---
 
@@ -170,7 +164,7 @@ Follow these steps on your first night to verify everything is working end-to-en
 2. Go to the **Settings** tab
 3. Enter your ngrok URL in the **Backend URL** field (e.g. `https://abc123.ngrok.io`)
 4. Tap **Test Connection** — you should see a latency value confirming the backend is reachable
-5. Tap **Test Cue** — Alexa should play your chosen sound within a few seconds, confirming the full pipeline works
+5. Tap **Test Cue** — your iPhone should immediately play `cue_sound.mp3` for the configured duration, confirming audio works
 6. Return to the **Tonight** tab
 7. Put on your Apple Watch
 8. Tap **START** — the watch app activates and begins a background workout session, which keeps the heart rate sensor running continuously
@@ -206,7 +200,7 @@ After your first 2–3 nights, review the dashboard history to calibrate the app
 Increase `MIN_REM_DURATION_MINUTES` in your `.env` or backend config. Starting with 7–10 minutes ensures the classifier has confirmed sustained REM before triggering.
 
 **Sleeping through cues**
-Decrease the cue interval so sounds repeat more frequently, or increase the Alexa routine volume slightly. The goal is audible-but-not-waking.
+Increase iPhone volume before bed and decrease the cue interval so cues repeat more frequently. You can also try a more distinctive sound file. The goal is audible-but-not-waking.
 
 **REM detection seems inaccurate**
 Confirm that HRV data is available on your dashboard. HRV requires Apple Watch Series 4 or later. Without HRV, the classifier falls back to HR and movement only, which is less accurate.
@@ -224,8 +218,8 @@ Ensure Bluetooth is enabled on your iPhone, the watch is paired, and both device
 **Background app being killed**
 The most common cause is missing location permission. Go to **iPhone Settings → DreamCue → Location** and confirm it is set to **Always**. The background location session is what prevents iOS from suspending the relay process overnight.
 
-**SinricPro not triggering Alexa**
-Check that `SINRICPRO_API_KEY` and `SINRICPRO_DEVICE_ID` in your `.env` file are correct. The Device ID is the long hexadecimal identifier from the SinricPro device page — not the display name. You can test the integration directly by calling the `/api/test-cue` endpoint on your backend.
+**Cue sound not playing**
+Check that `cue_sound.mp3` (or `.wav`/`.m4a`) is in the **Copy Bundle Resources** build phase for the DreamCue target. Use **Settings → Test Cue** — if you hear nothing check iPhone silent mode (flip the physical mute switch off) and volume level. If the file is missing the app will fall back to a system chime as confirmation that the trigger logic itself is working.
 
 **Heart rate readings missing from dashboard**
 The watch must be worn snugly with good skin contact. HealthKit HR samples can lag 30–60 seconds before appearing. The classifier uses a rolling 2-minute window of readings, so a brief gap will self-correct once samples resume.

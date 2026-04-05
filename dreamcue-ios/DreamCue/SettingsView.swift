@@ -6,6 +6,7 @@ struct SettingsView: View {
     @AppStorage("cueEnabled") private var cueEnabled: Bool = true
     @AppStorage("minREMMinutes") private var minREMMinutes: Double = 5
     @AppStorage("cueIntervalSeconds") private var cueIntervalSeconds: Double = 120
+    @AppStorage("cueDurationSeconds") private var cueDurationSeconds: Double = 30
 
     // MARK: - Transient UI state
     @State private var connectionStatus: ConnectionTestResult = .idle
@@ -63,31 +64,24 @@ struct SettingsView: View {
                             connectionStatusView
                         }
 
-                        // Test Cue
+                        // Test Cue — plays sound directly on the phone
                         HStack {
                             Button {
-                                Task { await testCue() }
+                                testCue()
                             } label: {
                                 HStack(spacing: 6) {
-                                    if isTestingCue {
-                                        ProgressView()
-                                            .progressViewStyle(.circular)
-                                            .scaleEffect(0.75)
-                                            .tint(.white)
-                                    } else {
-                                        Image(systemName: "bell.badge")
-                                    }
-                                    Text("Test Cue")
+                                    Image(systemName: isTestingCue ? "speaker.wave.3.fill" : "bell.badge")
+                                        .symbolEffect(.pulse, isActive: isTestingCue)
+                                    Text(isTestingCue ? "Playing… (tap to stop)" : "Test Cue")
                                 }
                             }
-                            .disabled(isTestingCue)
 
                             Spacer()
 
                             if let result = cueTestResult {
                                 Text(result)
                                     .font(.caption)
-                                    .foregroundColor(result.hasPrefix("OK") ? .green : .red)
+                                    .foregroundColor(.green)
                             }
                         }
 
@@ -122,6 +116,18 @@ struct SettingsView: View {
                             }
                             Slider(value: $cueIntervalSeconds, in: 60...300, step: 10)
                                 .tint(.indigo)
+                        }
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text("Cue Sound Duration")
+                                Spacer()
+                                Text("\(Int(cueDurationSeconds))s")
+                                    .foregroundColor(.gray)
+                                    .monospacedDigit()
+                            }
+                            Slider(value: $cueDurationSeconds, in: 5...120, step: 5)
+                                .tint(.purple)
                         }
 
                     } header: {
@@ -242,30 +248,23 @@ struct SettingsView: View {
         }
     }
 
-    private func testCue() async {
-        isTestingCue = true
-        cueTestResult = nil
-        defer { isTestingCue = false }
+    private func testCue() {
+        if isTestingCue {
+            // Second tap: stop the currently playing cue.
+            AudioCueManager.shared.stopCue()
+            isTestingCue = false
+            cueTestResult = nil
+        } else {
+            isTestingCue = true
+            cueTestResult = "Playing"
+            let duration = cueDurationSeconds
+            AudioCueManager.shared.playCue(duration: duration)
 
-        guard let url = URL(string: backendURL.trimmingCharacters(in: .whitespaces) + "/api/test-cue") else {
-            cueTestResult = "Bad URL"
-            return
-        }
-
-        do {
-            var request = URLRequest(url: url, timeoutInterval: 10)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            let (_, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
-                cueTestResult = "OK"
-            } else {
-                let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-                cueTestResult = "HTTP \(code)"
+            // Automatically reset button state when the cue finishes.
+            DispatchQueue.main.asyncAfter(deadline: .now() + duration + 0.2) {
+                isTestingCue = false
+                cueTestResult = nil
             }
-        } catch {
-            cueTestResult = shortErrorMessage(error)
         }
     }
 

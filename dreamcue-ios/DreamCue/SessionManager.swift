@@ -304,8 +304,10 @@ final class SessionManager: ObservableObject {
     // MARK: - Response parsing
 
     func updateStageFromResponse(_ response: [String: Any]) {
-        if let stageRaw = response["sleep_stage"] as? String,
-           let newStage = SleepStage(rawValue: stageRaw) {
+        // Update sleep stage — backend uses "stage" key.
+        let stageRaw = response["stage"] as? String ?? response["sleep_stage"] as? String
+        if let stageRaw,
+           let newStage = SleepStage(rawValue: stageRaw.lowercased()) {
             if newStage != currentStage {
                 currentStage = newStage
                 stageStartTime = Date()
@@ -313,8 +315,11 @@ final class SessionManager: ObservableObject {
             }
         }
 
-        if let fired = response["cue_fired"] as? Bool, fired {
+        // Fire local audio cue when the backend says to.
+        if let cueTriggered = response["cue_triggered"] as? Bool, cueTriggered {
             cuesFired += 1
+            let duration = UserDefaults.standard.double(forKey: "cueDurationSeconds")
+            AudioCueManager.shared.playCue(duration: duration > 0 ? duration : 30)
         }
 
         if let cueCount = response["cues_fired"] as? Int {
