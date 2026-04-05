@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+
+    <!-- App identity -->
+    <key>CFBundleDevelopmentRegion</key>
+    <string>$(DEVELOPMENT_LANGUAGE)</string>
+
+    <key>CFBundleDisplayName</key>
+    <string>DreamCue</string>
+
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+
+    <key>CFBundleVersion</key>
+    <string>1</string>
+
+    <!-- Supported interface orientations (iPhone) -->
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+    </array>
+
+    <!-- Background modes: location keeps the app alive overnight;
+         fetch and remote-notification allow silent pushes / BGAppRefresh -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>location</string>
+        <string>fetch</string>
+        <string>remote-notification</string>
+    </array>
+
+    <!-- HealthKit -->
+    <key>NSHealthShareUsageDescription</key>
+    <string>DreamCue reads your heart rate and HRV to detect sleep stages.</string>
+
+    <key>NSHealthUpdateUsageDescription</key>
+    <string>DreamCue writes sleep sessions to Health.</string>
+
+    <!-- Location — both keys are required when requesting Always authorization -->
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>DreamCue needs location access to stay active overnight while relaying your Apple Watch sleep data.</string>
+
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>DreamCue needs location access to stay active overnight.</string>
+
+    <!-- WatchKit companion app indicator -->
+    <key>WKWatchKitApp</key>
+    <true/>
+
+    <!-- App Transport Security: allow arbitrary HTTP for local dev server;
+         tighten this for production by specifying exact domains -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
+
+    <!-- Main storyboard / entry point (SwiftUI apps use this) -->
+    <key>UIApplicationSceneManifest</key>
+    <dict>
+        <key>UIApplicationSupportsMultipleScenes</key>
+        <false/>
+    </dict>
+
+    <!-- Launch screen -->
+    <key>UILaunchScreen</key>
+    <dict/>
+
+</dict>
+</plist>
