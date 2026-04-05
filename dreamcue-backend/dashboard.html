@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>DreamCue Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <style>
+    /* ------------------------------------------------------------------ */
+    /* Reset & base                                                        */
+    /* ------------------------------------------------------------------ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0d0d1a;
+      --surface:    #12122a;
+      --surface2:   #1a1a35;
+      --border:     #2a2a4a;
+      --text:       #e8e8f0;
+      --muted:      #8888aa;
+      --accent:     #7c6ef5;
+
+      --rem-color:   #9b59b6;
+      --light-color: #3498db;
+      --deep-color:  #1a237e;
+      --awake-color: #e8e8f0;
+      --deep-text:   #90caf9;
+
+      --green:  #2ecc71;
+      --yellow: #f1c40f;
+      --red:    #e74c3c;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 16px;
+      min-height: 100vh;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Layout                                                               */
+    /* ------------------------------------------------------------------ */
+    .app {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+
+    header h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--accent);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--green);
+      display: inline-block;
+      margin-right: 6px;
+      animation: pulse 2s infinite;
+    }
+    .status-dot.error { background: var(--red); animation: none; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Cards                                                                */
+    /* ------------------------------------------------------------------ */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Hero: current stage                                                  */
+    /* ------------------------------------------------------------------ */
+    .stage-hero {
+      text-align: center;
+      padding: 32px 20px;
+    }
+
+    #stage-label {
+      font-size: 3.5rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      line-height: 1;
+      transition: color 0.6s ease;
+    }
+
+    #stage-label.AWAKE { color: var(--awake-color); }
+    #stage-label.LIGHT { color: var(--light-color); }
+    #stage-label.DEEP  { color: var(--deep-text); }
+    #stage-label.REM   { color: var(--rem-color); }
+
+    #confidence-bar-wrap {
+      max-width: 280px;
+      margin: 14px auto 0;
+    }
+
+    .conf-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+      text-align: left;
+    }
+
+    #confidence-bar-bg {
+      background: var(--surface2);
+      border-radius: 99px;
+      height: 8px;
+      overflow: hidden;
+    }
+
+    #confidence-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: var(--accent);
+      transition: width 0.5s ease;
+      width: 0%;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Vitals row                                                           */
+    /* ------------------------------------------------------------------ */
+    .vitals-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .vital-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 12px;
+      text-align: center;
+    }
+
+    .vital-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .vital-value {
+      font-size: 2rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .vital-unit {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .source-badge {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 99px;
+      margin-top: 6px;
+      letter-spacing: 0.5px;
+    }
+    .source-badge.watch { background: #1a4d2a; color: var(--green); }
+    .source-badge.phone { background: #4d3d00; color: var(--yellow); }
+
+    /* ------------------------------------------------------------------ */
+    /* Summary row                                                          */
+    /* ------------------------------------------------------------------ */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    @media (min-width: 520px) {
+      .summary-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    .summary-item {
+      text-align: center;
+    }
+
+    .summary-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .summary-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Charts                                                               */
+    /* ------------------------------------------------------------------ */
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+    }
+
+    .chart-wrap canvas {
+      width: 100% !important;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Timeline                                                             */
+    /* ------------------------------------------------------------------ */
+    #timeline-container {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Buttons                                                              */
+    /* ------------------------------------------------------------------ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      transition: opacity 0.15s, transform 0.1s;
+      min-height: 52px;
+      touch-action: manipulation;
+    }
+
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-primary {
+      background: var(--rem-color);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .session-controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .session-controls .btn { flex: 1; min-width: 140px; }
+
+    /* ------------------------------------------------------------------ */
+    /* Toast                                                                */
+    /* ------------------------------------------------------------------ */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 0.9rem;
+      color: var(--text);
+      pointer-events: none;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      opacity: 0;
+      white-space: nowrap;
+      z-index: 999;
+    }
+
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    #toast.success { border-color: var(--green); color: var(--green); }
+    #toast.error   { border-color: var(--red);   color: var(--red); }
+
+    /* ------------------------------------------------------------------ */
+    /* Misc                                                                 */
+    /* ------------------------------------------------------------------ */
+    .last-updated {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: right;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <h1>&#x1F319; DreamCue</h1>
+    <div class="header-right">
+      <span><span class="status-dot" id="status-dot"></span><span id="status-text">Live</span></span>
+    </div>
+  </header>
+
+  <!-- CURRENT STAGE -->
+  <div class="card stage-hero">
+    <div class="card-title">Current Sleep Stage</div>
+    <div id="stage-label" class="AWAKE">—</div>
+    <div id="confidence-bar-wrap">
+      <div class="conf-label">Confidence: <span id="conf-pct">—</span></div>
+      <div id="confidence-bar-bg"><div id="confidence-bar-fill"></div></div>
+    </div>
+  </div>
+
+  <!-- VITALS -->
+  <div class="card">
+    <div class="card-title">Live Vitals</div>
+    <div class="vitals-grid">
+      <div class="vital-card">
+        <div class="vital-label">Heart Rate</div>
+        <div class="vital-value" id="hr-value">—</div>
+        <div class="vital-unit">bpm</div>
+        <div><span class="source-badge" id="source-badge">—</span></div>
+      </div>
+      <div class="vital-card">
+        <div class="vital-label">HRV</div>
+        <div class="vital-value" id="hrv-value">—</div>
+        <div class="vital-unit">ms</div>
+      </div>
+      <div class="vital-card">
+        <div class="vital-label">Battery</div>
+        <div class="vital-value" id="battery-value">—</div>
+        <div class="vital-unit">%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TONIGHT'S SUMMARY -->
+  <div class="card">
+    <div class="card-title">Tonight's Summary</div>
+    <div class="summary-grid">
+      <div class="summary-item">
+        <div class="summary-value" id="sum-time">—</div>
+        <div class="summary-label">Time Asleep</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-value" id="sum-rem">—</div>
+        <div class="summary-label">REM %</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-value" id="sum-deep">—</div>
+        <div class="summary-label">Deep %</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-value" id="sum-cues">—</div>
+        <div class="summary-label">Cues Fired</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAGE TIMELINE -->
+  <div class="card">
+    <div class="card-title">Stage Timeline</div>
+    <div id="timeline-container" class="chart-wrap">
+      <canvas id="timelineChart" height="80"></canvas>
+    </div>
+  </div>
+
+  <!-- HR TREND -->
+  <div class="card">
+    <div class="card-title">Heart Rate Trend</div>
+    <div class="chart-wrap">
+      <canvas id="hrChart" height="120"></canvas>
+    </div>
+  </div>
+
+  <!-- HRV TREND -->
+  <div class="card">
+    <div class="card-title">HRV Trend</div>
+    <div class="chart-wrap">
+      <canvas id="hrvChart" height="120"></canvas>
+    </div>
+  </div>
+
+  <!-- MOVEMENT -->
+  <div class="card">
+    <div class="card-title">Movement Magnitude</div>
+    <div class="chart-wrap">
+      <canvas id="movChart" height="100"></canvas>
+    </div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="card">
+    <div class="card-title">Controls</div>
+    <div class="session-controls">
+      <button class="btn btn-primary" id="btn-test-cue" onclick="fireCue()">
+        &#x26A1; Fire Test Cue
+      </button>
+      <button class="btn btn-secondary" id="btn-start" onclick="startSession()">
+        &#x25B6; Start Session
+      </button>
+      <button class="btn btn-secondary" id="btn-end" onclick="endSession()">
+        &#x25A0; End Session
+      </button>
+    </div>
+  </div>
+
+  <div class="last-updated">Last updated: <span id="last-updated-time">—</span></div>
+
+</div><!-- .app -->
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   Utilities
+   ============================================================ */
+const $ = id => document.getElementById(id);
+
+function showToast(msg, type = 'success', duration = 3000) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.className = ''; }, duration);
+}
+
+function fmtMinutes(mins) {
+  if (mins == null || isNaN(mins)) return '—';
+  const h = Math.floor(mins / 60);
+  const m = Math.round(mins % 60);
+  if (h === 0) return `${m}m`;
+  return `${h}h ${m}m`;
+}
+
+function fmtVal(v, decimals = 0) {
+  if (v == null || isNaN(v)) return '—';
+  return Number(v).toFixed(decimals);
+}
+
+function stageColor(stage) {
+  const map = {
+    REM:   '#9b59b6',
+    LIGHT: '#3498db',
+    DEEP:  '#1a237e',
+    AWAKE: '#aaaacc',
+  };
+  return map[stage] || '#555577';
+}
+
+/* ============================================================
+   Chart setup
+   ============================================================ */
+Chart.defaults.color = '#8888aa';
+Chart.defaults.borderColor = '#2a2a4a';
+
+const CHART_BG = '#12122a';
+
+// Shared options for line charts
+function lineChartOpts(label, color) {
+  return {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label,
+        data: [],
+        borderColor: color,
+        backgroundColor: color + '22',
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.35,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: items => items[0].label,
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { maxTicksLimit: 6, maxRotation: 0 },
+          grid: { color: '#1e1e36' },
+        },
+        y: {
+          ticks: { maxTicksLimit: 5 },
+          grid: { color: '#1e1e36' },
+        }
+      }
+    }
+  };
+}
+
+const hrChart  = new Chart($('hrChart'),  lineChartOpts('HR (bpm)', '#e74c3c'));
+const hrvChart = new Chart($('hrvChart'), lineChartOpts('HRV (ms)', '#2ecc71'));
+
+// Movement bar chart
+const movChart = new Chart($('movChart'), {
+  type: 'bar',
+  data: {
+    labels: [],
+    datasets: [{
+      label: 'Movement',
+      data: [],
+      backgroundColor: '#f39c1288',
+      borderColor: '#f39c12',
+      borderWidth: 1,
+      borderRadius: 2,
+    }]
+  },
+  options: {
+    responsive: true,
+    animation: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: {
+        ticks: { maxTicksLimit: 6, maxRotation: 0 },
+        grid: { color: '#1e1e36' },
+      },
+      y: {
+        min: 0,
+        ticks: { maxTicksLimit: 5 },
+        grid: { color: '#1e1e36' },
+      }
+    }
+  }
+});
+
+// Timeline chart — horizontal bar chart showing stage blocks over time
+const timelineChart = new Chart($('timelineChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Stage'],
+    datasets: []  // will be rebuilt from readings
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    animation: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const stage = ctx.dataset.label || '';
+            const dur = ctx.raw;
+            return ` ${stage}: ${fmtVal(dur, 1)} min`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        stacked: true,
+        title: { display: true, text: 'Minutes into session', color: '#8888aa' },
+        grid: { color: '#1e1e36' },
+        ticks: { maxTicksLimit: 8 },
+      },
+      y: {
+        stacked: true,
+        display: false,
+      }
+    }
+  }
+});
+
+/* ============================================================
+   Data processing
+   ============================================================ */
+
+// Thin out readings to at most maxPoints for chart rendering
+function thin(readings, maxPoints = 100) {
+  if (readings.length <= maxPoints) return readings;
+  const step = Math.ceil(readings.length / maxPoints);
+  return readings.filter((_, i) => i % step === 0);
+}
+
+function shortTime(isoStr) {
+  try {
+    const d = new Date(isoStr);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch { return isoStr; }
+}
+
+function updateTrendCharts(readings) {
+  const thinned = thin(readings, 100);
+  const labels = thinned.map(r => shortTime(r.timestamp));
+
+  // HR
+  hrChart.data.labels = labels;
+  hrChart.data.datasets[0].data = thinned.map(r => r.heart_rate ?? null);
+  hrChart.update('none');
+
+  // HRV
+  hrvChart.data.labels = labels;
+  hrvChart.data.datasets[0].data = thinned.map(r => r.hrv ?? null);
+  hrvChart.update('none');
+
+  // Movement
+  movChart.data.labels = labels;
+  movChart.data.datasets[0].data = thinned.map(r => r.movement_magnitude ?? null);
+  movChart.update('none');
+}
+
+function buildTimeline(readings) {
+  if (!readings.length) return;
+
+  // Walk through readings and accumulate consecutive same-stage blocks
+  const blocks = [];
+  let current = null;
+  let sessionStartMs = null;
+
+  for (const r of readings) {
+    const stage = r.detected_stage;
+    if (!stage) continue;
+
+    const ts = new Date(r.timestamp).getTime();
+    if (!sessionStartMs) sessionStartMs = ts;
+
+    if (!current || current.stage !== stage) {
+      if (current) {
+        current.endMs = ts;
+        current.durationMin = (current.endMs - current.startMs) / 60000;
+        blocks.push(current);
+      }
+      current = { stage, startMs: ts, endMs: ts, durationMin: 0 };
+    } else {
+      current.endMs = ts;
+    }
+  }
+
+  // Close last block
+  if (current) {
+    current.endMs = new Date(readings[readings.length - 1].timestamp).getTime();
+    current.durationMin = Math.max(0.1, (current.endMs - current.startMs) / 60000);
+    blocks.push(current);
+  }
+
+  // Build one dataset per block (Chart.js stacked bar)
+  const datasets = blocks.map(b => ({
+    label: b.stage,
+    data: [b.durationMin],
+    backgroundColor: stageColor(b.stage) + 'cc',
+    borderColor: stageColor(b.stage),
+    borderWidth: 1,
+    borderRadius: 3,
+    borderSkipped: false,
+  }));
+
+  timelineChart.data.datasets = datasets;
+  timelineChart.update('none');
+}
+
+/* ============================================================
+   API calls
+   ============================================================ */
+
+async function fetchHistory() {
+  const res = await fetch('/api/history?limit=200');
+  if (!res.ok) throw new Error(`history ${res.status}`);
+  return res.json();
+}
+
+async function fetchCurrentStage() {
+  const res = await fetch('/api/current-stage');
+  if (!res.ok) throw new Error(`stage ${res.status}`);
+  return res.json();
+}
+
+async function fetchStats() {
+  const res = await fetch('/api/stats');
+  if (!res.ok) throw new Error(`stats ${res.status}`);
+  return res.json();
+}
+
+/* ============================================================
+   UI update
+   ============================================================ */
+
+function updateStageUI(stageData) {
+  const stage = (stageData.stage || 'UNKNOWN').toUpperCase();
+  const el = $('stage-label');
+
+  el.textContent = stage;
+  el.className = stage;
+
+  const conf = stageData.confidence;
+  if (conf != null) {
+    const pct = Math.round(conf * 100);
+    $('conf-pct').textContent = `${pct}%`;
+    $('confidence-bar-fill').style.width = `${pct}%`;
+  }
+
+  const hr = stageData.heart_rate;
+  const hrv = stageData.hrv;
+  const bat = stageData.watch_battery;
+  const src = (stageData.source || '').toLowerCase();
+
+  $('hr-value').textContent  = hr  != null ? fmtVal(hr, 0)  : '—';
+  $('hrv-value').textContent = hrv != null ? fmtVal(hrv, 0) : '—';
+  $('battery-value').textContent = bat != null ? fmtVal(bat, 0) : '—';
+
+  const badge = $('source-badge');
+  badge.textContent = src === 'watch' ? 'WATCH' : src === 'phone' ? 'PHONE' : src.toUpperCase() || '—';
+  badge.className = `source-badge ${src}`;
+}
+
+function updateSummaryUI(statsData) {
+  if (!statsData || !statsData.session) return;
+  const s = statsData.session;
+
+  $('sum-time').textContent  = fmtMinutes(s.total_minutes);
+  $('sum-rem').textContent   = s.rem_pct  != null ? `${s.rem_pct}%`  : '—';
+  $('sum-deep').textContent  = s.deep_pct != null ? `${s.deep_pct}%` : '—';
+  $('sum-cues').textContent  = s.cues_fired != null ? s.cues_fired : '—';
+}
+
+/* ============================================================
+   Main refresh loop
+   ============================================================ */
+
+async function refresh() {
+  try {
+    const [histData, stageData, statsData] = await Promise.all([
+      fetchHistory(),
+      fetchCurrentStage(),
+      fetchStats(),
+    ]);
+
+    const readings = histData.readings || [];
+
+    // Update vitals / stage
+    // Merge latest reading vitals into stageData if not already present
+    if (readings.length) {
+      const last = readings[readings.length - 1];
+      if (stageData.heart_rate == null)   stageData.heart_rate   = last.heart_rate;
+      if (stageData.hrv == null)          stageData.hrv          = last.hrv;
+      if (stageData.watch_battery == null) stageData.watch_battery = last.watch_battery;
+      if (!stageData.source)              stageData.source        = last.source;
+    }
+
+    updateStageUI(stageData);
+    updateSummaryUI(statsData);
+    updateTrendCharts(readings);
+    buildTimeline(readings);
+
+    // Update status indicator
+    $('status-dot').className = 'status-dot';
+    $('status-text').textContent = 'Live';
+    $('last-updated-time').textContent = new Date().toLocaleTimeString();
+  } catch (err) {
+    console.error('Refresh error:', err);
+    $('status-dot').className = 'status-dot error';
+    $('status-text').textContent = 'Error';
+  }
+}
+
+/* ============================================================
+   Button handlers
+   ============================================================ */
+
+async function fireCue() {
+  const btn = $('btn-test-cue');
+  btn.disabled = true;
+  btn.textContent = 'Firing…';
+  try {
+    const res = await fetch('/api/test-cue', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast('Cue fired!', 'success');
+    } else {
+      showToast(data.detail || 'Cue failed', 'error');
+    }
+  } catch (err) {
+    showToast('Network error', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '&#x26A1; Fire Test Cue';
+  }
+}
+
+async function startSession() {
+  const btn = $('btn-start');
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/session/start', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(`Session started: ${data.session_id.slice(0, 8)}…`, 'success');
+      await refresh();
+    } else {
+      showToast(data.detail || 'Failed to start', 'error');
+    }
+  } catch (err) {
+    showToast('Network error', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function endSession() {
+  const btn = $('btn-end');
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/session/end', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('Session ended', 'success');
+      await refresh();
+    } else {
+      showToast(data.detail || 'No active session', 'error');
+    }
+  } catch (err) {
+    showToast('Network error', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ============================================================
+   Boot
+   ============================================================ */
+refresh();
+setInterval(refresh, 10000);  // auto-refresh every 10 seconds
+</script>
+</body>
+</html>
